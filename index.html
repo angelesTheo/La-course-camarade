@@ -235,11 +235,11 @@ const DEF={
   pallet:{w:84,h:70,hh:60,extra:0},
   car:{w:176,h:82,hh:999,extra:0},
   gas:{w:230,h:190,hh:999,extra:0,span:1},
-  crs:{w:38,h:118,hh:999,extra:55,enemy:1,st:{torso:'#16244a',legs:'#0f1830',shoe:'#0a0a10',hat:'riot',acc:'crs',hair:'#222222'}},
+  crs:{w:38,h:118,hh:999,extra:55,enemy:1,st:{torso:'#2a4080',legs:'#1c2a52',shoe:'#0a0a10',hat:'riot',acc:'crs',hair:'#222222'}},
   police:{w:34,h:114,hh:999,extra:70,enemy:1,st:{torso:'#1f3a6e',legs:'#16233f',shoe:'#0c0c12',hat:'cap',acc:'police',hair:'#2b1b12'}},
   gendarme:{w:34,h:114,hh:999,extra:100,enemy:1,st:{torso:'#2a458a',legs:'#1a2750',shoe:'#0c0c12',hat:'kepi',acc:'gendarme',hair:'#2b1b12'}},
   army:{w:44,h:118,hh:999,extra:40,enemy:1,st:{torso:'#5b6b3a',legs:'#4a5530',shoe:'#1b1b14',hat:'helmet',acc:'army',hair:'#2b1b12'}},
-  president:{w:50,h:126,hh:999,extra:30,enemy:1,st:{torso:'#1c2340',legs:'#151a33',shoe:'#0c0c12',hat:'gray',acc:'pres',hair:'#cfcac0'}}
+  president:{w:50,h:126,hh:999,extra:30,enemy:1,st:{torso:'#34407a',legs:'#262f5c',shoe:'#0c0c12',hat:'gray',acc:'pres',hair:'#cfcac0'}}
 };
 const UNL=[
   {m:25,k:'police',t:'Les policiers arrivent !'},
@@ -299,7 +299,7 @@ const sfx={
 };
 
 /* ---------- background ---------- */
-let farC,midC,glowC,puffC;
+let farC,midC,glowC,puffC,auraC;
 function mk(w,h){const c=document.createElement('canvas');c.width=Math.round(w*DPR);c.height=Math.round(h*DPR);const g=c.getContext('2d');g.scale(DPR,DPR);return [c,g]}
 function buildBG(){
   let c,g;
@@ -354,8 +354,12 @@ function buildBG(){
   g.fillStyle=gr;g.fillRect(0,0,220,220);
   [c,g]=mk(128,128);puffC=c;
   const pg=g.createRadialGradient(64,64,2,64,64,64);
-  pg.addColorStop(0,'rgba(238,244,230,.62)');pg.addColorStop(.55,'rgba(222,234,216,.3)');pg.addColorStop(1,'rgba(222,234,216,0)');
+  pg.addColorStop(0,'rgba(228,242,150,.66)');pg.addColorStop(.55,'rgba(204,228,120,.34)');pg.addColorStop(1,'rgba(204,228,120,0)');
   g.fillStyle=pg;g.fillRect(0,0,128,128);
+  [c,g]=mk(160,160);auraC=c;
+  const ag=g.createRadialGradient(80,80,4,80,80,80);
+  ag.addColorStop(0,'rgba(255,92,64,.5)');ag.addColorStop(.5,'rgba(255,70,50,.2)');ag.addColorStop(1,'rgba(255,70,50,0)');
+  g.fillStyle=ag;g.fillRect(0,0,160,160);
 }
 function tile(c,off){
   const o=((off%TW)+TW)%TW;
@@ -629,14 +633,30 @@ function drawCar(x,y,s,e){
   ctx.restore();
 }
 function drawGas(e){
-  const s=laneS(e.lane),y=laneY(e.lane)-48*s;
-  ctx.save();ctx.translate(e.x,y);ctx.scale(s,s);
+  const a=Math.round(e.lane),y0=laneY(a),y1=laneY(a+1),ym=(y0+y1)/2,s=laneS(a+.5);
+  /* zone au sol : montre les deux voies bloquees */
+  ctx.save();ctx.translate(e.x,ym);
+  const pu=.5+.5*Math.sin(T*3);
+  ctx.beginPath();ctx.ellipse(0,0,116,(y1-y0)/2+28,0,0,Math.PI*2);
+  ctx.fillStyle='rgba(196,232,96,'+(.17+.07*pu).toFixed(3)+')';ctx.fill();
+  ctx.setLineDash([16,10]);ctx.lineDashOffset=RM?0:-T*36;
+  ctx.lineWidth=3;ctx.strokeStyle='rgba(226,244,120,.9)';ctx.stroke();
+  ctx.restore();
+  /* nuage centre entre les deux voies */
+  ctx.save();ctx.translate(e.x,ym-46);ctx.scale(s,s);
   for(let i=0;i<22;i++){
-    const a=i*2.399+e.ph*.1,f=(i*.618)%1,rd=.25+.75*f;
-    const px=Math.cos(a)*rd*92+Math.sin(T*1.1+i)*9,py=Math.sin(a)*rd*54+Math.cos(T*1.3+i*1.7)*6;
+    const an=i*2.399+e.ph*.1,f=(i*.618)%1,rd=.25+.75*f;
+    const px=Math.cos(an)*rd*84+Math.sin(T*1.1+i)*9,py=Math.sin(an)*rd*54+Math.cos(T*1.3+i*1.7)*6;
     const r=34+(i%4)*8+Math.sin(T*2+i)*4;
     ctx.drawImage(puffC,px-r,py-r,r*2,r*2);
   }
+  ctx.restore();
+  /* pancarte */
+  ctx.save();
+  ctx.font='400 14px Anton, Impact, sans-serif';ctx.textAlign='center';
+  const tx='GAZ \u2014 2 VOIES',wt=ctx.measureText(tx).width+16,ty=ym-132*s;
+  fillRR(e.x-wt/2,ty-15,wt,21,3,'#dff06a');
+  ctx.fillStyle='#26300a';ctx.fillText(tx,e.x,ty);
   ctx.restore();
 }
 function drawEnt(e){
@@ -658,6 +678,7 @@ function drawEnt(e){
   }
   else{
     const st=Object.assign({skin:SKIN[e.skin]},e.d.st),sc=s*(k==='president'?1.08:1);
+    ctx.drawImage(auraC,e.x-70*sc,y-112*sc,140*sc,140*sc);
     person(e.x,y,sc,-1,e.ph,st,{});
     if(k==='president'){
       ctx.save();
